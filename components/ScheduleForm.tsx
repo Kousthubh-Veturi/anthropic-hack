@@ -162,7 +162,7 @@ export default function ScheduleForm({ onSubmit, loading }: ScheduleFormProps) {
                       required
                     />
                     <p className="text-xs text-muted-foreground">
-                      Days and times (e.g., "MWF 9:00 AM - 10:00 AM")
+                      Days and times (e.g., &quot;MWF 9:00 AM - 10:00 AM&quot;)
                     </p>
                   </div>
                 </div>
