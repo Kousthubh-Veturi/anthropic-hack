@@ -3,8 +3,9 @@
 import { useState } from 'react';
 
 interface Course {
-  name: string;
-  time: string;
+  name: string; // Optional - will be fetched from UMD API
+  courseId: string; // Required
+  time: string; // Required
 }
 
 interface Club {
@@ -22,7 +23,7 @@ interface ScheduleFormProps {
 }
 
 export default function ScheduleForm({ onSubmit, loading }: ScheduleFormProps) {
-  const [courses, setCourses] = useState<Course[]>([{ name: '', time: '' }]);
+  const [courses, setCourses] = useState<Course[]>([{ name: '', courseId: '', time: '' }]);
   const [clubs, setClubs] = useState<Club[]>([{ name: '', time: '' }]);
   const [goals, setGoals] = useState('');
 
@@ -30,6 +31,7 @@ export default function ScheduleForm({ onSubmit, loading }: ScheduleFormProps) {
     const newCourses = [...courses];
     newCourses[index] = { ...newCourses[index], [field]: value };
     setCourses(newCourses);
+    // Note: Course names will be fetched when form is submitted, not on every change
   };
 
   const handleClubChange = (index: number, field: keyof Club, value: string) => {
@@ -39,7 +41,7 @@ export default function ScheduleForm({ onSubmit, loading }: ScheduleFormProps) {
   };
 
   const addCourse = () => {
-    setCourses([...courses, { name: '', time: '' }]);
+    setCourses([...courses, { name: '', courseId: '', time: '' }]);
   };
 
   const removeCourse = (index: number) => {
@@ -61,12 +63,19 @@ export default function ScheduleForm({ onSubmit, loading }: ScheduleFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Filter out empty entries
-    const validCourses = courses.filter(c => c.name.trim() && c.time.trim());
+    // Filter out empty entries - courseId and time are required, name is optional (will be fetched from API)
+    const validCourses = courses.filter(c => c.courseId.trim() && c.time.trim());
     const validClubs = clubs.filter(c => c.name.trim() && c.time.trim());
     
     if (validCourses.length === 0 && validClubs.length === 0) {
       alert('Please add at least one course or club');
+      return;
+    }
+    
+    // Validate all courses have courseId and time
+    const invalidCourses = validCourses.filter(c => !c.courseId.trim() || !c.time.trim());
+    if (invalidCourses.length > 0) {
+      alert('All courses must have a Course ID and Time');
       return;
     }
     
@@ -91,23 +100,37 @@ export default function ScheduleForm({ onSubmit, loading }: ScheduleFormProps) {
         </h2>
         {courses.map((course, index) => (
           <div key={index} className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Course Name
+                  Course ID (UMD) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={course.courseId}
+                  onChange={(e) => handleCourseChange(index, 'courseId', e.target.value)}
+                  placeholder="e.g., CMSC131"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">Course name will be fetched automatically</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Course Name (Optional)
                 </label>
                 <input
                   type="text"
                   value={course.name}
                   onChange={(e) => handleCourseChange(index, 'name', e.target.value)}
-                  placeholder="e.g., Computer Science 101"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
-                  required={index === 0}
+                  placeholder="Auto-filled from UMD API"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white bg-gray-50 dark:bg-gray-900"
+                  readOnly
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Time
+                  Time <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -115,7 +138,7 @@ export default function ScheduleForm({ onSubmit, loading }: ScheduleFormProps) {
                   onChange={(e) => handleCourseChange(index, 'time', e.target.value)}
                   placeholder="e.g., Monday 9:00 AM - 10:30 AM"
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
-                  required={index === 0}
+                  required
                 />
               </div>
             </div>
