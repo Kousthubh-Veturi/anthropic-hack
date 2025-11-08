@@ -2,6 +2,10 @@
 
 import { useState } from 'react';
 import ScheduleCalendar from './ScheduleCalendar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { AlertCircle, CheckCircle2, Code2, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface ResponseDisplayProps {
   response: string | null;
@@ -13,17 +17,17 @@ export default function ResponseDisplay({ response, error }: ResponseDisplayProp
 
   if (error) {
     return (
-      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 mb-6">
-        <div className="flex items-start">
-          <svg className="w-6 h-6 text-red-600 dark:text-red-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div>
-            <h3 className="text-lg font-semibold text-red-800 dark:text-red-300 mb-2">Error</h3>
-            <p className="text-red-700 dark:text-red-400">{error}</p>
+      <Card className="border-destructive">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-destructive" />
+            <CardTitle className="text-destructive">Error</CardTitle>
           </div>
-        </div>
-      </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-destructive">{error}</p>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -31,47 +35,245 @@ export default function ResponseDisplay({ response, error }: ResponseDisplayProp
 
   // Try to parse JSON from response
   let scheduleData = null;
+  let parseError: Error | null = null;
   try {
-    // Extract JSON from markdown code blocks if present
-    const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) || response.match(/```\s*([\s\S]*?)\s*```/);
-    const jsonStr = jsonMatch ? jsonMatch[1] : response;
-    scheduleData = JSON.parse(jsonStr.trim());
+    let jsonStr = response.trim();
+    
+    // Remove markdown code blocks if present
+    if (jsonStr.includes('```json')) {
+      const match = jsonStr.match(/```json\s*([\s\S]*?)\s*```/);
+      if (match) jsonStr = match[1].trim();
+    } else if (jsonStr.includes('```')) {
+      const match = jsonStr.match(/```\s*([\s\S]*?)\s*```/);
+      if (match) jsonStr = match[1].trim();
+    }
+    
+    // If it starts with {, try to parse it directly
+    if (jsonStr.startsWith('{')) {
+      // Try to find the complete JSON object by balancing braces
+      let braceCount = 0;
+      let lastValidIndex = -1;
+      let inString = false;
+      let escapeNext = false;
+      
+      for (let i = 0; i < jsonStr.length; i++) {
+        const char = jsonStr[i];
+        
+        if (escapeNext) {
+          escapeNext = false;
+          continue;
+        }
+        
+        if (char === '\\') {
+          escapeNext = true;
+          continue;
+        }
+        
+        if (char === '"') {
+          inString = !inString;
+          continue;
+        }
+        
+        if (!inString) {
+          if (char === '{') braceCount++;
+          if (char === '}') {
+            braceCount--;
+            if (braceCount === 0) {
+              lastValidIndex = i;
+              break;
+            }
+          }
+        }
+      }
+      
+      if (lastValidIndex > 0) {
+        jsonStr = jsonStr.substring(0, lastValidIndex + 1);
+        try {
+          scheduleData = JSON.parse(jsonStr);
+        } catch (parseErr) {
+          // If parsing fails, try to fix incomplete arrays/objects
+          let fixedJson = jsonStr;
+          let bracketCount = 0;
+          let braceCount = 0;
+          let inString = false;
+          let escapeNext = false;
+          
+          // Count brackets and braces
+          for (let i = 0; i < fixedJson.length; i++) {
+            const char = fixedJson[i];
+            if (escapeNext) {
+              escapeNext = false;
+              continue;
+            }
+            if (char === '\\') {
+              escapeNext = true;
+              continue;
+            }
+            if (char === '"') {
+              inString = !inString;
+              continue;
+            }
+            if (!inString) {
+              if (char === '[') bracketCount++;
+              if (char === ']') bracketCount--;
+              if (char === '{') braceCount++;
+              if (char === '}') braceCount--;
+            }
+          }
+          
+          // Remove trailing comma if present before closing
+          fixedJson = fixedJson.replace(/,\s*$/, '');
+          
+          // Close any open brackets first (inner structures)
+          while (bracketCount > 0) {
+            fixedJson += ']';
+            bracketCount--;
+          }
+          
+          // Then close any open braces
+          while (braceCount > 0) {
+            fixedJson += '}';
+            braceCount--;
+          }
+          
+          // Try parsing the fixed JSON
+          try {
+            scheduleData = JSON.parse(fixedJson);
+            console.log('Successfully parsed fixed JSON');
+          } catch {
+            // If still fails, throw original error
+            throw parseErr;
+          }
+        }
+      } else {
+        // If we can't find a complete JSON, try parsing what we have
+        // This might fail but we'll catch it
+        scheduleData = JSON.parse(jsonStr);
+      }
+    } else {
+      // Try to find JSON object in the text
+      const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        let matchedJson = jsonMatch[0];
+        // Balance braces for the matched JSON
+        let braceCount = 0;
+        let lastValidIndex = -1;
+        let inString = false;
+        let escapeNext = false;
+        
+        for (let i = 0; i < matchedJson.length; i++) {
+          const char = matchedJson[i];
+          
+          if (escapeNext) {
+            escapeNext = false;
+            continue;
+          }
+          
+          if (char === '\\') {
+            escapeNext = true;
+            continue;
+          }
+          
+          if (char === '"') {
+            inString = !inString;
+            continue;
+          }
+          
+          if (!inString) {
+            if (char === '{') braceCount++;
+            if (char === '}') {
+              braceCount--;
+              if (braceCount === 0) {
+                lastValidIndex = i;
+                break;
+              }
+            }
+          }
+        }
+        if (lastValidIndex > 0) {
+          matchedJson = matchedJson.substring(0, lastValidIndex + 1);
+        }
+        scheduleData = JSON.parse(matchedJson);
+      }
+    }
   } catch (e) {
-    // If not JSON, display as text
-    console.log('Response is not JSON, displaying as text');
+    parseError = e instanceof Error ? e : new Error(String(e));
+    console.error('Failed to parse JSON:', e);
+    console.log('Response length:', response.length);
+    console.log('Response text (first 1000 chars):', response.substring(0, 1000));
+    console.log('Response text (last 500 chars):', response.substring(Math.max(0, response.length - 500)));
+  }
+
+  // Debug: log if we successfully parsed
+  if (scheduleData) {
+    console.log('Successfully parsed schedule data:', {
+      hasWorkload: !!scheduleData.workload_breakdown,
+      hasSchedule: !!scheduleData.weekly_schedule,
+      scheduleItems: scheduleData.weekly_schedule?.length || 0
+    });
   }
 
   return (
-    <div className="bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 border border-green-200 dark:border-gray-600 rounded-lg p-6 shadow-lg mb-6">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-start">
-          <svg className="w-6 h-6 text-green-600 dark:text-green-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-white">AI Recommendations</h3>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-primary" />
+            <CardTitle>AI Schedule Recommendations</CardTitle>
+            {scheduleData && (
+              <Badge variant="secondary" className="ml-2">
+                <Calendar className="h-3 w-3 mr-1" />
+                Calendar View
+              </Badge>
+            )}
+          </div>
+          {scheduleData && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRaw(!showRaw)}
+            >
+              {showRaw ? (
+                <>
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Show Calendar
+                </>
+              ) : (
+                <>
+                  <Code2 className="h-4 w-4 mr-2" />
+                  Show Raw JSON
+                </>
+              )}
+            </Button>
+          )}
         </div>
-        {scheduleData && (
-          <button
-            onClick={() => setShowRaw(!showRaw)}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-          >
-            {showRaw ? 'Show Calendar' : 'Show Raw JSON'}
-          </button>
+      </CardHeader>
+      <CardContent>
+        {scheduleData && !showRaw ? (
+          <ScheduleCalendar data={scheduleData} />
+        ) : (
+          <div className="space-y-4">
+            {!scheduleData && parseError && (
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+                <p className="text-sm text-destructive font-medium mb-2">
+                  ⚠️ JSON Parse Error: {parseError instanceof Error ? parseError.message : String(parseError)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  The response may be incomplete or malformed. Response length: {response.length} characters.
+                  Check browser console (F12) for full error details.
+                </p>
+              </div>
+            )}
+            <div className="rounded-lg border bg-muted/50 p-4">
+              <pre className="overflow-x-auto text-sm max-h-[600px] overflow-y-auto">
+                <code className="text-foreground whitespace-pre-wrap">
+                  {response}
+                </code>
+              </pre>
+            </div>
+          </div>
         )}
-      </div>
-
-      {scheduleData && !showRaw ? (
-        <ScheduleCalendar data={scheduleData} />
-      ) : (
-        <div className="prose dark:prose-invert max-w-none">
-          <pre className="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm">
-            <code className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-              {response}
-            </code>
-          </pre>
-        </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 }
-

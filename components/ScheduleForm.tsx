@@ -1,11 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Trash2, BookOpen, Users, Target, Loader2 } from 'lucide-react';
 
 interface Course {
-  name: string; // Optional - will be fetched from UMD API
-  courseId: string; // Required
-  time: string; // Required
+  name: string;
+  courseId: string;
+  time: string;
 }
 
 interface Club {
@@ -31,7 +39,6 @@ export default function ScheduleForm({ onSubmit, loading }: ScheduleFormProps) {
     const newCourses = [...courses];
     newCourses[index] = { ...newCourses[index], [field]: value };
     setCourses(newCourses);
-    // Note: Course names will be fetched when form is submitted, not on every change
   };
 
   const handleClubChange = (index: number, field: keyof Club, value: string) => {
@@ -63,7 +70,6 @@ export default function ScheduleForm({ onSubmit, loading }: ScheduleFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Filter out empty entries - courseId and time are required, name is optional (will be fetched from API)
     const validCourses = courses.filter(c => c.courseId.trim() && c.time.trim());
     const validClubs = clubs.filter(c => c.name.trim() && c.time.trim());
     
@@ -72,7 +78,6 @@ export default function ScheduleForm({ onSubmit, loading }: ScheduleFormProps) {
       return;
     }
     
-    // Validate all courses have courseId and time
     const invalidCourses = validCourses.filter(c => !c.courseId.trim() || !c.time.trim());
     if (invalidCourses.length > 0) {
       alert('All courses must have a Course ID and Time');
@@ -92,166 +97,228 @@ export default function ScheduleForm({ onSubmit, loading }: ScheduleFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 mb-6">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {/* Courses Section */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
-          Courses
-        </h2>
-        {courses.map((course, index) => (
-          <div key={index} className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Course ID (UMD) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={course.courseId}
-                  onChange={(e) => handleCourseChange(index, 'courseId', e.target.value)}
-                  placeholder="e.g., CMSC131"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">Course name will be fetched automatically</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Course Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={course.name}
-                  onChange={(e) => handleCourseChange(index, 'name', e.target.value)}
-                  placeholder="Auto-filled from UMD API"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white bg-gray-50 dark:bg-gray-900"
-                  readOnly
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Time <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={course.time}
-                  onChange={(e) => handleCourseChange(index, 'time', e.target.value)}
-                  placeholder="e.g., Monday 9:00 AM - 10:30 AM"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
-                  required
-                />
-              </div>
-            </div>
-            {courses.length > 1 && (
-              <button
-                type="button"
-                onClick={() => removeCourse(index)}
-                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm font-medium"
-              >
-                Remove Course
-              </button>
-            )}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-primary" />
+            <CardTitle>Courses</CardTitle>
           </div>
-        ))}
-        <button
-          type="button"
-          onClick={addCourse}
-          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
-        >
-          + Add Another Course
-        </button>
-      </div>
+          <CardDescription>
+            Add your courses with their UMD course IDs and meeting times
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {courses.map((course, index) => (
+            <Card key={index} className="bg-muted/50">
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor={`course-id-${index}`}>
+                      Course ID <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id={`course-id-${index}`}
+                      type="text"
+                      value={course.courseId}
+                      onChange={(e) => handleCourseChange(index, 'courseId', e.target.value.toUpperCase())}
+                      placeholder="CMSC216"
+                      required
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      UMD course identifier (e.g., CMSC216, ENES140)
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor={`course-name-${index}`}>
+                      Course Name
+                    </Label>
+                    <Input
+                      id={`course-name-${index}`}
+                      type="text"
+                      value={course.name}
+                      placeholder="Auto-filled from UMD API"
+                      readOnly
+                      className="bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Will be automatically fetched
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor={`course-time-${index}`}>
+                      Meeting Time <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id={`course-time-${index}`}
+                      type="text"
+                      value={course.time}
+                      onChange={(e) => handleCourseChange(index, 'time', e.target.value)}
+                      placeholder="Tuesday & Thursday 11:00 AM - 12:15 PM"
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Days and times (e.g., "MWF 9:00 AM - 10:00 AM")
+                    </p>
+                  </div>
+                </div>
+                
+                {courses.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeCourse(index)}
+                    className="mt-4 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Remove Course
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+          
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addCourse}
+            className="w-full"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Another Course
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Clubs Section */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
-          Clubs & Activities
-        </h2>
-        {clubs.map((club, index) => (
-          <div key={index} className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Club/Activity Name
-                </label>
-                <input
-                  type="text"
-                  value={club.name}
-                  onChange={(e) => handleClubChange(index, 'name', e.target.value)}
-                  placeholder="e.g., Chess Club"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Time
-                </label>
-                <input
-                  type="text"
-                  value={club.time}
-                  onChange={(e) => handleClubChange(index, 'time', e.target.value)}
-                  placeholder="e.g., Wednesday 3:00 PM - 5:00 PM"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
-                />
-              </div>
-            </div>
-            {clubs.length > 1 && (
-              <button
-                type="button"
-                onClick={() => removeClub(index)}
-                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm font-medium"
-              >
-                Remove Club
-              </button>
-            )}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            <CardTitle>Clubs & Activities</CardTitle>
           </div>
-        ))}
-        <button
-          type="button"
-          onClick={addClub}
-          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
-        >
-          + Add Another Club/Activity
-        </button>
-      </div>
+          <CardDescription>
+            Add your extracurricular activities and their meeting times
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {clubs.map((club, index) => (
+            <Card key={index} className="bg-muted/50">
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor={`club-name-${index}`}>
+                      Activity Name
+                    </Label>
+                    <Input
+                      id={`club-name-${index}`}
+                      type="text"
+                      value={club.name}
+                      onChange={(e) => handleClubChange(index, 'name', e.target.value)}
+                      placeholder="Chess Club, Part-time Job, etc."
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor={`club-time-${index}`}>
+                      Meeting Time
+                    </Label>
+                    <Input
+                      id={`club-time-${index}`}
+                      type="text"
+                      value={club.time}
+                      onChange={(e) => handleClubChange(index, 'time', e.target.value)}
+                      placeholder="Wednesday 3:00 PM - 5:00 PM"
+                    />
+                  </div>
+                </div>
+                
+                {clubs.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeClub(index)}
+                    className="mt-4 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Remove Activity
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+          
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addClub}
+            className="w-full"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Another Activity
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Goals Section */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
-          Your Goals
-        </h2>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Write 5 sentences about your goals and what you need to do:
-        </label>
-        <textarea
-          value={goals}
-          onChange={(e) => setGoals(e.target.value)}
-          placeholder="e.g., I want to maintain a 3.8 GPA this semester. I need to complete all assignments on time. I want to improve my coding skills through practice. I need to balance my coursework with club activities. I want to network with professionals in my field."
-          rows={6}
-          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white resize-none"
-          required
-        />
-      </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            <CardTitle>Your Goals</CardTitle>
+          </div>
+          <CardDescription>
+            Describe your academic and personal goals (at least 5 sentences)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Label htmlFor="goals">
+              Goals & Objectives <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="goals"
+              value={goals}
+              onChange={(e) => setGoals(e.target.value)}
+              placeholder="I want to maintain a 3.8 GPA this semester. I need to complete all assignments on time. I want to improve my coding skills through practice. I need to balance my coursework with club activities. I want to network with professionals in my field."
+              rows={6}
+              required
+              className="resize-none"
+            />
+            <p className="text-xs text-muted-foreground">
+              {goals.split(/[.!?]+/).filter(s => s.trim().length > 0).length} sentences entered
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator />
 
       {/* Submit Button */}
-      <button
+      <Button
         type="submit"
         disabled={loading}
-        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+        className="w-full h-12 text-lg"
+        size="lg"
       >
         {loading ? (
-          <span className="flex items-center justify-center">
-            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Getting AI Recommendations...
-          </span>
+          <>
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Generating Schedule...
+          </>
         ) : (
-          'Get AI Recommendations'
+          <>
+            <Target className="mr-2 h-5 w-5" />
+            Get AI Schedule Recommendations
+          </>
         )}
-      </button>
+      </Button>
     </form>
   );
 }
-

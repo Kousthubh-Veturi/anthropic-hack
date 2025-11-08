@@ -85,10 +85,10 @@ export async function POST(request: NextRequest) {
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-2.5-flash',
       generationConfig: {
-        temperature: 0.3, // Lower temperature for more consistent JSON output
+        temperature: 0.2, // Lower temperature for more consistent JSON output
         topP: 0.95,
         topK: 40,
-        maxOutputTokens: 8192, // Allow for large JSON responses
+        maxOutputTokens: 32768, // Increased significantly for large JSON responses
       },
     });
 
@@ -168,7 +168,13 @@ export async function POST(request: NextRequest) {
     }
     
     prompt += `\nGoals:\n${goals}\n\n`;
-    prompt += `Please follow the instructions in the scheduling engine prompt above and return the OUTPUT JSON schema exactly as specified.`;
+    prompt += `\nCRITICAL INSTRUCTIONS:\n`;
+    prompt += `1. Return ONLY valid, complete JSON - no markdown, no code blocks, no explanations\n`;
+    prompt += `2. Start with { and end with }\n`;
+    prompt += `3. Ensure ALL arrays and objects are properly closed\n`;
+    prompt += `4. The JSON must be complete and parseable\n`;
+    prompt += `5. If the schedule is long, prioritize completing the weekly_schedule array over adding extra details\n`;
+    prompt += `6. Return the full JSON structure even if it means fewer schedule items\n`;
 
     console.log('Prompt length:', prompt.length, 'characters');
     console.log('Calling Gemini API...');
@@ -177,9 +183,9 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
     let result;
     try {
-      // Add a timeout wrapper
+      // Add a longer timeout wrapper (90 seconds for complex prompts)
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Gemini API call timed out after 60 seconds')), 60000);
+        setTimeout(() => reject(new Error('Gemini API call timed out after 90 seconds')), 90000);
       });
       
       result = await Promise.race([
@@ -200,10 +206,40 @@ export async function POST(request: NextRequest) {
     }
     
     const response = await result.response;
-    const text = response.text();
-    console.log('Response received, length:', text.length, 'characters');
-
-    return NextResponse.json({ response: text });
+    let text: string;
+    
+    try {
+      text = response.text();
+      console.log('Response received, length:', text.length, 'characters');
+      
+      // Clean up the response - remove markdown code blocks if present
+      let cleanedText = text.trim();
+      if (cleanedText.startsWith('```json')) {
+        cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      // Log response length to check for truncation
+      console.log('Cleaned response length:', cleanedText.length);
+      if (cleanedText.length > 30000) {
+        console.warn('Response is very long, may be truncated');
+      }
+      
+      return NextResponse.json({ response: cleanedText });
+    } catch (textError) {
+      console.error('Error extracting text from response:', textError);
+      // Try to get candidates as fallback
+      const candidates = response.candidates;
+      if (candidates && candidates.length > 0) {
+        const content = candidates[0].content;
+        if (content && content.parts) {
+          const partText = content.parts.map((p: any) => p.text).join('');
+          return NextResponse.json({ response: partText });
+        }
+      }
+      throw new Error('Failed to extract response text from Gemini API');
+    }
   } catch (error) {
     console.error('Error calling Gemini API:', error);
     
